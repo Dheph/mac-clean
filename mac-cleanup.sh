@@ -106,8 +106,8 @@ get_memory_used_gb() {
     vm_stats=$(vm_stat 2>/dev/null)
 
     local pages_active pages_wired
-    pages_active=$(echo "$vm_stats" | awk '/Pages active/ {gsub(/[^0-9]/,"",$3); print $3}')
-    pages_wired=$(echo "$vm_stats" | awk '/wired/ {gsub(/[^0-9]/,"",$3); print $3}')
+    pages_active=$(echo "$vm_stats" | awk '/Pages active/ {gsub(/[^0-9]/,"",$NF); print $NF}')
+    pages_wired=$(echo "$vm_stats" | awk '/wired/{if($2=="wired" && $3=="down:") {gsub(/[^0-9]/,"",$NF); print $NF}}' )
     pages_active=$(safe_int "$pages_active")
     pages_wired=$(safe_int "$pages_wired")
 
