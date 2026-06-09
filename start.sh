@@ -3,14 +3,13 @@
 # ══════════════════════════════════════════════════════════════
 #  macOS Cleanup Tool — Installer
 #  Detects your shell and adds the `mac-clean` alias
+#  Usage: source start.sh   (recomended — applies immediately)
+#         bash start.sh     (alias available in future sessions)
 # ══════════════════════════════════════════════════════════════
 
-set -e
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLEANUP_SCRIPT="$SCRIPT_DIR/mac-cleanup.sh"
-
-ALIAS_LINE="alias mac-clean='\"$CLEANUP_SCRIPT\"'"
+ALIAS_LINE="alias mac-clean='$CLEANUP_SCRIPT'"
 
 detect_shell_config() {
     local shell_name
@@ -38,53 +37,74 @@ detect_shell_config() {
     esac
 }
 
+add_alias_to_config() {
+    local config_path="$1"
+    if [ ! -f "$config_path" ]; then
+        touch "$config_path" 2>/dev/null || return 1
+    fi
+    echo "" >> "$config_path"
+    echo "# macOS Cleanup Tool" >> "$config_path"
+    echo "$ALIAS_LINE" >> "$config_path"
+    return 0
+}
+
+# ── Detect shell ──────────────────────────────────────────────
 config_path=$(detect_shell_config)
 shell_name=$(basename "$SHELL" 2>/dev/null || echo "unknown")
 
 echo ""
 echo "  macOS Cleanup Tool — Installer"
 echo "  ─────────────────────────────"
+echo "  Shell:         $shell_name"
+echo "  Config file:   $config_path"
+echo "  Script path:   $CLEANUP_SCRIPT"
 echo ""
-echo "  Detected shell: $shell_name"
 
+# ── Unsupported shell? ────────────────────────────────────────
 if [ "$config_path" = "unknown" ]; then
     echo "  Unsupported shell: $shell_name"
-    echo "  Add the following alias manually to your shell config:"
+    echo "  Add this alias manually:"
     echo ""
     echo "    $ALIAS_LINE"
     echo ""
     exit 1
 fi
 
-echo "  Config file:   $config_path"
-
-if [ ! -f "$config_path" ]; then
-    echo "  Creating $config_path..."
-    touch "$config_path"
-fi
-
+# ── Already installed? ────────────────────────────────────────
 if grep -q "alias mac-clean=" "$config_path" 2>/dev/null; then
-    echo ""
-    echo "  Alias 'mac-clean' already exists in $config_path"
-    echo "  Skipping."
+    sed -i '' '/^alias mac-clean=/d' "$config_path"
+    echo "  ✓ Updated alias in $config_path"
+    if add_alias_to_config "$config_path"; then
+        echo "  ✓ Alias rewritten in $config_path"
+    fi
 else
-    echo ""
-    echo "  Adding alias to $config_path..."
-    echo "" >> "$config_path"
-    echo "# macOS Cleanup Tool" >> "$config_path"
-    echo "$ALIAS_LINE" >> "$config_path"
-    echo "  Done!"
+    if add_alias_to_config "$config_path"; then
+        echo "  ✓ Alias added to $config_path"
+    else
+        echo "  ✗ Failed to write to $config_path"
+        exit 1
+    fi
 fi
 
-echo ""
-echo "  ──────────────────────────────────────────────────────"
-echo "  To use it now, run:"
-echo ""
-echo "    source $config_path"
-echo ""
-echo "  Then simply type:"
-echo ""
-echo "    mac-clean"
-echo ""
-echo "  ──────────────────────────────────────────────────────"
-echo ""
+# ── If sourced, apply alias to current shell ──────────────────
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo ""
+    echo "  ════════════════════════════════════════════════════"
+    echo "  Done! To use it right now in this terminal, run:"
+    echo ""
+    echo "    eval \"$ALIAS_LINE\""
+    echo ""
+    echo "  Or reload your config:"
+    echo ""
+    echo "    source $config_path"
+    echo ""
+    echo "  From new terminals it will be available automatically."
+    echo "  ════════════════════════════════════════════════════"
+    echo ""
+else
+    eval "$ALIAS_LINE"
+    echo "  ✓ Alias 'mac-clean' applied to this terminal session"
+    echo ""
+    echo "    mac-clean"
+    echo ""
+fi
