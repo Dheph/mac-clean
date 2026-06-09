@@ -28,6 +28,86 @@ CATEGORIES_CLEANED=()
 CATEGORIES_SKIPPED=()
 CATEGORIES_FREED=()
 
+# ── Config ─────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_DIR="$HOME/.config/mac-cleanup"
+CONFIG_FILE="$CONFIG_DIR/config"
+
+read_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE" 2>/dev/null
+        return 0
+    fi
+    SCHEDULE_TYPE=""
+    SCHEDULE_DAY=""
+    SCHEDULE_HOUR=""
+    SCHEDULE_MINUTE=""
+    SCHEDULE_CREATED=""
+    return 1
+}
+
+days_until_next_run() {
+    local type="${SCHEDULE_TYPE:-}" day="${SCHEDULE_DAY:-1}"
+    local hour="${SCHEDULE_HOUR:-0}" min="${SCHEDULE_MINUTE:-0}"
+    local created="${SCHEDULE_CREATED:-0}"
+
+    if [ -z "$type" ]; then return; fi
+
+    case "$type" in
+        weekly)
+            local now now_day
+            now=$(date +%s)
+            now_day=$(date +%u)
+            local target=$day
+            local diff=$(( (target - now_day + 7) % 7 ))
+            [ "$diff" -eq 0 ] && diff=7
+            local next_epoch=$(( now + diff * 86400 ))
+            echo "$(( (next_epoch - now) / 86400 ))"
+            ;;
+        biweekly)
+            local interval=$(( 14 * 86400 ))
+            local now
+            now=$(date +%s)
+            [ "$created" -eq 0 ] && { echo "?"; return; }
+            local elapsed=$(( now - created ))
+            local periods=$(( elapsed / interval ))
+            local next_epoch=$(( created + (periods + 1) * interval ))
+            echo "$(( (next_epoch - now) / 86400 ))"
+            ;;
+        monthly)
+            local now now_day
+            now=$(date +%s)
+            now_day=$(date +%d)
+            now_day=$((10#$now_day))
+            target=$day
+            if [ "$now_day" -le "$target" ]; then
+                echo "$(( target - now_day ))"
+            else
+                local days_in_month
+                days_in_month=$(cal "$(date +%m)" "$(date +%Y)" 2>/dev/null | awk 'NF {days=$NF} END {print days}')
+                echo "$(( days_in_month - now_day + target ))"
+            fi
+            ;;
+    esac
+}
+
+schedule_type_name() {
+    case "${SCHEDULE_TYPE:-}" in
+        weekly)   echo "Every $(day_name ${SCHEDULE_DAY:-1}) at ${SCHEDULE_HOUR:-10}:00" ;;
+        biweekly) echo "Every 14 days" ;;
+        monthly)  echo "Every month on day ${SCHEDULE_DAY:-1} at ${SCHEDULE_HOUR:-10}:00" ;;
+        *)        echo "Not configured" ;;
+    esac
+}
+
+day_name() {
+    case "$1" in
+        1) echo "Monday" ;; 2) echo "Tuesday" ;; 3) echo "Wednesday" ;;
+        4) echo "Thursday" ;; 5) echo "Friday" ;; 6) echo "Saturday" ;; 7) echo "Sunday" ;;
+        *) echo "Day $1" ;;
+    esac
+}
+
 # ── Helper Functions ──────────────────────────────────────────
 
 safe_int() {
@@ -657,15 +737,186 @@ print_final_report() {
     echo ""
 }
 
+# ── Help & Setup ──────────────────────────────────────────────
+
+show_header() {
+    echo -e "  ${BOLD}${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
+    echo -e "  ${BOLD}${CYAN}║${NC}                  ${BOLD}M A C   C L E A N${NC}                     ${BOLD}${CYAN}║${NC}"
+    echo -e "  ${BOLD}${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "  ${DIM}Commands:${NC}"
+    echo -e "    ${BOLD}mac-clean${NC}         Run interactive cleanup"
+    echo -e "    ${BOLD}mac-clean help${NC}    Show help & category info"
+    echo -e "    ${BOLD}mac-clean setup${NC}   Manage scheduled cleanup"
+    echo ""
+}
+
+show_help() {
+    clear
+    show_header
+    echo -e "  ${BOLD}ABOUT${NC}"
+    echo -e "  macOS Cleanup Tool — safely removes junk files"
+    echo -e "  to free disk space. Every action is confirmed"
+    echo -e "  before deletion. Nothing runs without your OK."
+    echo ""
+    echo -e "  ${BOLD}CATEGORIES${NC}"
+    echo ""
+    printf "  %-2s  %-20s %s\n" " #" "Category" "Description"
+    printf "  %-2s  %-20s %s\n" "---" "--------------------" "------------------------------"
+    printf "  %-2s  %-20s %s\n" " 1" "Trash" "User trash"
+    printf "  %-2s  %-20s %s\n" " 2" "System Caches" "/Library/Caches"
+    printf "  %-2s  %-20s %s\n" " 3" "User Caches" "~/Library/Caches"
+    printf "  %-2s  %-20s %s\n" " 4" "System Logs" "/Library/Logs, /var/log"
+    printf "  %-2s  %-20s %s\n" " 5" "User Logs" "~/Library/Logs"
+    printf "  %-2s  %-20s %s\n" " 6" "Temporary Files" "/tmp, /private/tmp"
+    printf "  %-2s  %-20s %s\n" " 7" "Xcode DerivedData" "Build artifacts"
+    printf "  %-2s  %-20s %s\n" " 8" "Homebrew Cache" "Brew download cache"
+    printf "  %-2s  %-20s %s\n" " 9" "Node.js Cache" "npm, yarn, pnpm"
+    printf "  %-2s  %-20s %s\n" "10" "Python Cache" "pip cache"
+    printf "  %-2s  %-20s %s\n" "11" "Docker Unused" "Images, containers, volumes"
+    printf "  %-2s  %-20s %s\n" "12" "Spotify Cache" "Cached audio"
+    printf "  %-2s  %-20s %s\n" "13" "Time Machine" "Local snapshots"
+    printf "  %-2s  %-20s %s\n" "14" "iOS Backups" "Device backups"
+    printf "  %-2s  %-20s %s\n" "15" "Mail Downloads" "Mail attachments"
+    printf "  %-2s  %-20s %s\n" "16" ".DS_Store" "Hidden metadata files"
+    echo ""
+    echo -e "  ${BOLD}SCHEDULED CLEANUP${NC}"
+    echo -e "  Run ${BOLD}mac-clean setup${NC} to see your schedule,"
+    echo -e "  change frequency, or remove it."
+    echo ""
+    echo -e "  ${BOLD}ALIAS${NC}"
+    echo -e "  Run ${BOLD}source start.sh${NC} from the project folder"
+    echo -e "  to install the ${DIM}mac-clean${NC} alias and schedule."
+    echo ""
+}
+
+setup_menu() {
+    clear
+    show_header
+    echo -e "  ${BOLD}SCHEDULED CLEANUP${NC}"
+    echo ""
+
+    read_config
+    local sched="$CONFIG_DIR/schedule"
+    local plist="$HOME/Library/LaunchAgents/com.mac-cleanup.schedule.plist"
+
+    if [ -n "$SCHEDULE_TYPE" ] && [ -f "$plist" ]; then
+        local remaining
+        remaining=$(days_until_next_run)
+        echo -e "  Status:  ${GREEN}Active${NC}"
+        echo -e "  Schedule: $(schedule_type_name)"
+        [ -n "$remaining" ] && echo -e "  Next:    ~${remaining} day(s)"
+        echo ""
+        echo -e "  ${BOLD}[1]${NC} Change schedule"
+        echo -e "  ${BOLD}[2]${NC} Remove schedule"
+        echo -e "  ${BOLD}[3]${NC} Cancel"
+        echo ""
+        read -rp "  Choice [1-3]: " opt
+        case "$opt" in
+            1)
+                echo ""
+                echo "    ${BOLD}[1]${NC} Weekly (every Monday)"
+                echo "    ${BOLD}[2]${NC} Every 2 weeks"
+                echo "    ${BOLD}[3]${NC} Monthly (1st of month)"
+                echo "    ${BOLD}[4]${NC} Cancel"
+                echo ""
+                read -rp "    Interval [1-4]: " new_sched
+                local cmd_file
+                cmd_file="$SCRIPT_DIR/mac-cleanup.command"
+                case "$new_sched" in
+                    1)
+                        read -rp "    Weekday [1=Mon-7=Sun, default=1]: " wd
+                        mkdir -p "$CONFIG_DIR"
+                        echo "SCHEDULE_TYPE=weekly" > "$CONFIG_FILE"
+                        echo "SCHEDULE_DAY=${wd:-1}" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_HOUR=10" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_MINUTE=0" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        echo -e "  ${GREEN}✓${NC} Schedule updated!"
+                        ;;
+                    2)
+                        mkdir -p "$CONFIG_DIR"
+                        echo "SCHEDULE_TYPE=biweekly" > "$CONFIG_FILE"
+                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        echo -e "  ${GREEN}✓${NC} Schedule updated!"
+                        ;;
+                    3)
+                        mkdir -p "$CONFIG_DIR"
+                        echo "SCHEDULE_TYPE=monthly" > "$CONFIG_FILE"
+                        echo "SCHEDULE_DAY=1" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_HOUR=10" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_MINUTE=0" >> "$CONFIG_FILE"
+                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        echo -e "  ${GREEN}✓${NC} Schedule updated!"
+                        ;;
+                    *)
+                        echo "  No changes."
+                        ;;
+                esac
+                if [ "$new_sched" -ge 1 ] && [ "$new_sched" -le 3 ] 2>/dev/null; then
+                    if [ ! -f "$cmd_file" ]; then
+                        cat > "$cmd_file" <<- EOFC
+#!/usr/bin/env bash
+cd "\$(dirname "\$0")"
+exec ./mac-cleanup.sh
+EOFC
+                        chmod +x "$cmd_file"
+                    fi
+                fi
+                ;;
+            2)
+                launchctl unload "$plist" 2>/dev/null || true
+                rm -f "$plist" "$CONFIG_FILE"
+                echo -e "  ${GREEN}✓${NC} Schedule removed."
+                ;;
+            *)
+                echo "  No changes."
+                ;;
+        esac
+    else
+        echo -e "  Status:  ${DIM}Not configured${NC}"
+        echo ""
+        echo -e "  Run ${BOLD}source start.sh${NC} from the project folder"
+        echo -e "  to set up a scheduled cleanup routine."
+        echo ""
+        echo -e "  Or configure it manually:"
+        echo -e "    ${BOLD}[1]${NC} Weekly"
+        echo -e "    ${BOLD}[2]${NC} Every 2 weeks"
+        echo -e "    ${BOLD}[3]${NC} Monthly"
+        echo -e "    ${BOLD}[4]${NC} Cancel"
+        echo ""
+        read -rp "  Choice [1-4]: " new_sched
+        case "$new_sched" in
+            1|2|3)
+                echo ""
+                echo "  To complete the setup, run:"
+                echo "    source $(dirname "$0")/start.sh"
+                echo ""
+                ;;
+            *)
+                echo "  No changes."
+                ;;
+        esac
+    fi
+    echo ""
+}
+
 # ── Main ──────────────────────────────────────────────────────
 
 main() {
-    clear
+    case "${1:-}" in
+        help|--help|-h)
+            show_help
+            exit 0
+            ;;
+        setup)
+            setup_menu
+            exit 0
+            ;;
+    esac
 
-    echo -e "  ${BOLD}${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}             ${BOLD}macOS Cleanup Tool v1.0${NC}                  ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
-    echo ""
+    clear
+    show_header
 
     print_system_status
     echo ""
