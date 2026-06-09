@@ -12,6 +12,8 @@ CLEANUP_SCRIPT="$SCRIPT_DIR/mac-cleanup.sh"
 ALIAS_LINE="alias mac-clean='$CLEANUP_SCRIPT'"
 PLIST_LABEL="com.mac-cleanup.schedule"
 PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
+CONFIG_DIR="$HOME/.config/mac-cleanup"
+CONFIG_FILE="$CONFIG_DIR/config"
 
 # ── Detect Shell Config ──────────────────────────────────────
 
@@ -129,6 +131,7 @@ load_plist() {
 unload_plist() {
     launchctl unload "$PLIST_PATH" 2>/dev/null || true
     rm -f "$PLIST_PATH"
+    rm -f "$CONFIG_FILE"
 }
 
 # ── Main ──────────────────────────────────────────────────────
@@ -209,18 +212,39 @@ else
             cmd_file=$(create_command_file)
             create_plist "$cmd_file" "weekly" "$weekday"
             load_plist
+            mkdir -p "$CONFIG_DIR"
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=weekly
+SCHEDULE_DAY=$weekday
+SCHEDULE_HOUR=10
+SCHEDULE_MINUTE=0
+SCHEDULE_CREATED=$(date +%s)
+EOF
             echo "  ✓ Scheduled: every $([ "$weekday" = "1" ] && echo "Monday" || echo "weekday $weekday") at 10 AM."
             ;;
         2)
             cmd_file=$(create_command_file)
             create_plist "$cmd_file" "biweekly"
             load_plist
+            mkdir -p "$CONFIG_DIR"
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=biweekly
+SCHEDULE_CREATED=$(date +%s)
+EOF
             echo "  ✓ Scheduled: every 2 weeks."
             ;;
         3)
             cmd_file=$(create_command_file)
             create_plist "$cmd_file" "monthly"
             load_plist
+            mkdir -p "$CONFIG_DIR"
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=monthly
+SCHEDULE_DAY=1
+SCHEDULE_HOUR=10
+SCHEDULE_MINUTE=0
+SCHEDULE_CREATED=$(date +%s)
+EOF
             echo "  ✓ Scheduled: 1st of each month at 10 AM."
             ;;
         *)
