@@ -2,27 +2,34 @@
 
 Interactive shell script to clean junk files and free disk space on macOS.
 
-## Features
+## Commands
 
-- **16 cleanup categories** — Trash, Caches, Logs, Xcode, Homebrew, Node.js, Python, Docker, and more
-- **System Status Dashboard** — shows disk usage and memory before and after cleanup
-- **Interactive menu** — select exactly what to clean, confirm each operation
-- **Safe mode** — nothing is removed without confirmation
-- **Final report** — shows exactly how much space was recovered
-- **Scheduled cleanup** — optional weekly/bi-weekly/monthly schedule via launchd
+| Command | What it does |
+|---------|-------------|
+| `mac-clean` | Open interactive cleanup menu |
+| `mac-clean help` | Show help, categories, and usage info |
+| `mac-clean setup` | View or change scheduled cleanup |
 
 ## Quick Start
 
 ```bash
-# 1. Run installer
-source start.sh   # recommended — alias works immediately
-# or: bash start.sh
+# 1. Run installer (recommended — applies alias immediately)
+source start.sh
 
 # 2. Run the tool
 mac-clean
 
 # 3. Follow the interactive menu
 ```
+
+## Features
+
+- **16 cleanup categories** — Trash, Caches, Logs, Xcode, Homebrew, Node.js, Python, Docker, Spotify, and more
+- **System Status Dashboard** — shows disk usage and memory before and after cleanup
+- **Interactive menu** — select exactly what to clean, confirm each operation
+- **Safe mode** — nothing is removed without confirmation
+- **Final report** — shows exactly how much space was recovered
+- **Scheduled cleanup** — optional weekly/bi-weekly/monthly routine via `launchd`
 
 ## Scheduling
 
@@ -34,9 +41,14 @@ The installer can set up a **recurring cleanup routine** using macOS `launchd`:
 | Bi-weekly | Every 14 days |
 | Monthly | 1st of each month at 10 AM |
 
-On schedule, a Terminal window opens automatically with the cleanup menu ready. Just type numbers and confirm — zero effort.
+On schedule, a Terminal window opens automatically with the cleanup menu ready.
 
-No extra processes running. No noticeable overhead. launchd sleeps until the scheduled time.
+```bash
+# View or change your schedule anytime:
+mac-clean setup
+```
+
+No extra processes running. launchd sleeps until the scheduled time — zero overhead.
 
 ## Categories
 
@@ -59,20 +71,20 @@ No extra processes running. No noticeable overhead. launchd sleeps until the sch
 | 15 | Mail Downloads | Mail.app attachments |
 | 16 | .DS_Store Files | Hidden metadata files |
 
-## Requirements
-
-- macOS (tested on Ventura / Sonoma / Sequoia)
-- Bash 3.2+
-
 ## Project
 
 ```
 mac-cleanup/
-├── mac-cleanup.sh      # Main cleanup tool
-├── start.sh            # Installer & scheduler
+├── mac-cleanup.sh       # Main cleanup tool
+├── start.sh             # Installer & scheduler
 ├── mac-cleanup.command  # Created by start.sh for Terminal scheduling
 └── README.md
 ```
+
+## Requirements
+
+- macOS (tested on Ventura / Sonoma / Sequoia)
+- Bash 3.2+
 
 ## License
 
