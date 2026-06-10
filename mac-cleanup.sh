@@ -12,11 +12,67 @@ export LANG=C
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
+
+# ── Responsive Box Drawing ────────────────────────────────────
+
+box_w() {
+    local cols
+    cols=$(tput cols 2>/dev/null || echo 80)
+    local w=$((cols - 4))
+    [ "$w" -lt 46 ] && w=46
+    echo "$w"
+}
+
+box_hr() {
+    local ch="$1" n="${2:-}" i
+    if [ -z "$n" ]; then
+        n=$(box_w)
+        n=$((n - 2))
+    fi
+    for ((i=0; i<n; i++)); do printf "%s" "$ch"; done
+}
+
+box_top() {
+    local title="${1:-}" w inner left right
+    w=$(box_w)
+    inner=$((w - 2))
+    if [ -n "$title" ]; then
+        local tlen
+        tlen=$(echo "$title" | awk '{print length}')
+        left=$(((inner - tlen - 2) / 2))
+        right=$((inner - tlen - 2 - left))
+        echo -ne "  ${CYAN}╔${NC}$(box_hr ═ "$left")${NC} ${CYAN}${BOLD}${title}${NC} ${CYAN}$(box_hr ═ "$right")${NC}${CYAN}╗${NC}\n"
+    else
+        echo -e "  ${CYAN}╔$(box_hr ═)╗${NC}"
+    fi
+}
+
+box_bot() {
+    echo -e "  ${CYAN}╚$(box_hr ═)╝${NC}"
+}
+
+box_sep() {
+    echo -e "  ${CYAN}╠$(box_hr ═)╣${NC}"
+}
+
+box_empty() {
+    echo -e "  ${CYAN}║$(box_hr ' ')║${NC}"
+}
+
+box_line() {
+    local content="$1" w clean tlen
+    w=$(box_w)
+    local inner=$((w - 2))
+    clean=$(echo "$content" | sed 's/\x1b\[[0-9;]*m//g')
+    tlen=$(echo "$clean" | awk '{print length}')
+    local pad=$((inner - tlen))
+    [ "$pad" -lt 0 ] && pad=0
+    echo -e "  ${CYAN}║${NC}${content}$(printf '%*s' "$pad" '')${CYAN}║${NC}"
+}
 
 # ── Global Variables ─────────────────────────────────────────
 TOTAL_FREED=0
@@ -694,17 +750,18 @@ print_system_status() {
     BEFORE_DISK_AVAIL="$disk_avail_gb"
     BEFORE_MEM_USED="$mem_used"
 
-    echo -e "  ${BOLD}${CYAN}┌─ System Status ──────────────────────────────────────┐${NC}"
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Disk Total:${NC}      ${disk_total_gb} GB                         ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Disk Used:${NC}       ${disk_used_gb} GB (${disk_pct}%)                    ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Disk Available:${NC}  ${disk_avail_gb} GB                         ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Memory Total:${NC}    ${mem_total} GB                         ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Memory Used:${NC}     ${mem_used} GB                         ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Memory Free:${NC}     ${mem_free} GB                         ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-    echo -e "  ${CYAN}└──────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    box_top "System Status"
+    box_empty
+    box_line "  ${BOLD}Disk Total:${NC}      ${disk_total_gb} GB"
+    box_line "  ${BOLD}Disk Used:${NC}       ${disk_used_gb} GB (${disk_pct}%)"
+    box_line "  ${BOLD}Disk Available:${NC}  ${disk_avail_gb} GB"
+    box_empty
+    box_line "  ${BOLD}Memory Total:${NC}    ${mem_total} GB"
+    box_line "  ${BOLD}Memory Used:${NC}     ${mem_used} GB"
+    box_line "  ${BOLD}Memory Free:${NC}     ${mem_free} GB"
+    box_empty
+    box_bot
 }
 
 # ── Print Menu ────────────────────────────────────────────────
@@ -765,27 +822,28 @@ clean_category() {
     fi
 
     echo ""
-    echo -e "  ${CYAN}╭─ Cleaning: ${BOLD}${cat_name}${NC} ${CYAN}──────────────────────────────╮${NC}"
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Path:${NC}    ${cat_path}"
-    echo -e "  ${CYAN}│${NC}  ${BOLD}Size:${NC}    ${size_str}"
+    box_top "Cleaning: ${cat_name}"
+    box_empty
+    box_line "  ${BOLD}Path:${NC}    ${cat_path}"
+    box_line "  ${BOLD}Size:${NC}    ${size_str}"
     if [ "$sudo_req" = "yes" ]; then
-        echo -e "  ${CYAN}│${NC}  ${BOLD}Requires:${NC} sudo"
+        box_line "  ${BOLD}Requires:${NC} sudo"
     elif [ "$sudo_req" = "partial" ]; then
-        echo -e "  ${CYAN}│${NC}  ${BOLD}Requires:${NC} sudo (partial)"
+        box_line "  ${BOLD}Requires:${NC} sudo (partial)"
     fi
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-    echo -e "  ${CYAN}│${NC}  Proceed? ${BOLD}[y/N]${NC}: \c"
+    box_empty
+    echo -e "  ${CYAN}║${NC}  Proceed? ${BOLD}[y/N]${NC}: \c"
 
     read -r confirm
     if ! echo "$confirm" | grep -qi "^y"; then
-        echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
-        echo -e "  ${CYAN}╰${NC} ${YELLOW}Skipped.${NC}                                          ${CYAN}╯${NC}"
+        box_empty
+        box_line "  ${YELLOW}Skipped.${NC}"
+        box_bot
         CATEGORIES_SKIPPED+=("$cat_name")
         return
     fi
 
-    echo -e "  ${CYAN}│${NC}                                                      ${CYAN}│${NC}"
+    box_empty
 
     local before_size="$size_kb"
 
@@ -818,8 +876,8 @@ clean_category() {
     CATEGORIES_FREED+=("$freed_str")
 
     echo ""
-    echo -e "  ${CYAN}│${NC}  ${GREEN}✓ Cleaned: ${freed_str} freed${NC}"
-    echo -e "  ${CYAN}╰──────────────────────────────────────────────────────╯${NC}"
+    box_line "  ${GREEN}✓ Cleaned: ${freed_str} freed${NC}"
+    box_bot
 }
 
 # ── Print Final Report ────────────────────────────────────────
@@ -837,13 +895,12 @@ print_final_report() {
     disk_recovered=$(awk "BEGIN {printf \"%.1f\", ${disk_after} - ${disk_before}}" 2>/dev/null || echo "0.0")
 
     echo ""
-    echo -e "  ${BOLD}${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}                  ${BOLD}Cleanup Report${NC}                       ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}╠══════════════════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}                                                      ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ${BOLD}DISK${NC}                                                 ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ├── Before:        ${disk_before} GB available               ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ├── After:         ${disk_after} GB available               ${BOLD}${CYAN}║${NC}"
+    box_top "Cleanup Report"
+    box_sep
+    box_empty
+    box_line "  ${BOLD}DISK${NC}"
+    box_line "  ├── Before:        ${disk_before} GB available"
+    box_line "  ├── After:         ${disk_after} GB available"
 
     local sign=""
     local color="${GREEN}"
@@ -852,46 +909,42 @@ print_final_report() {
     if awk "BEGIN { exit (${rec_val} >= 0) }" 2>/dev/null; then
         color="${RED}"
     fi
-    echo -e "  ${BOLD}${CYAN}║${NC}  └── Recovered:     ${color}${disk_recovered} GB${NC}                          ${BOLD}${CYAN}║${NC}"
+    box_line "  └── Recovered:     ${color}${disk_recovered} GB${NC}"
 
-    echo -e "  ${BOLD}${CYAN}║${NC}                                                      ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ${BOLD}MEMORY${NC}                                              ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ├── Before:        ${BEFORE_MEM_USED} GB used                    ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  └── After:         ${AFTER_MEM_USED} GB used                    ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}                                                      ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ${BOLD}BREAKDOWN${NC}                                           ${BOLD}${CYAN}║${NC}"
+    box_empty
+    box_line "  ${BOLD}MEMORY${NC}"
+    box_line "  ├── Before:        ${BEFORE_MEM_USED} GB used"
+    box_line "  └── After:         ${AFTER_MEM_USED} GB used"
+    box_empty
+    box_line "  ${BOLD}BREAKDOWN${NC}"
 
     local i=0 freed dots_count dots
     for cat in "${CATEGORIES_CLEANED[@]}"; do
         freed="${CATEGORIES_FREED[$i]}"
-        dots_count=$(( 30 - ${#cat} ))
+        dots_count=$(( 28 - ${#cat} ))
         dots=$(printf '%*s' "$dots_count" | tr ' ' '.')
-        echo -e "  ${BOLD}${CYAN}║${NC}  ├── ${GREEN}[✓]${NC} ${cat} ${dots} ${freed}             ${BOLD}${CYAN}║${NC}"
+        box_line "  ├── ${GREEN}[✓]${NC} ${cat} ${DIM}${dots}${NC} ${freed}"
         i=$((i + 1))
     done
 
     for cat in "${CATEGORIES_SKIPPED[@]}"; do
-        dots_count=$(( 30 - ${#cat} ))
+        dots_count=$(( 28 - ${#cat} ))
         dots=$(printf '%*s' "$dots_count" | tr ' ' '.')
-        echo -e "  ${BOLD}${CYAN}║${NC}  ├── ${DIM}[—]${NC} ${cat} ${dots} ${DIM}skipped${NC}            ${BOLD}${CYAN}║${NC}"
+        box_line "  ├── ${DIM}[—]${NC} ${cat} ${dots} ${DIM}skipped${NC}"
     done
 
     local total_str
     total_str=$(format_size "$TOTAL_FREED")
 
-    echo -e "  ${BOLD}${CYAN}║${NC}                                                      ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}  ${BOLD}Total Freed: ${total_str}${NC}                                ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}                                                      ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+    box_empty
+    box_line "  ${BOLD}Total Freed: ${total_str}${NC}"
+    box_empty
+    box_bot
     echo ""
 }
 
-# ── Help & Setup ──────────────────────────────────────────────
-
 show_header() {
-    echo -e "  ${BOLD}${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${CYAN}║${NC}                  ${BOLD}M A C   C L E A N${NC}                     ${BOLD}${CYAN}║${NC}"
-    echo -e "  ${BOLD}${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
+    box_top "M A C   C L E A N"
     echo ""
     echo -e "  ${DIM}Commands:${NC}"
     echo -e "    ${BOLD}mac-clean${NC}         Run interactive cleanup"
