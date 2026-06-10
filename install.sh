@@ -73,4 +73,14 @@ echo ""
 
 # ── Run local setup ──────────────────────────────────────────
 cd "$INSTALL_DIR"
-exec bash start.sh
+bash start.sh
+
+echo ""
+echo "  ─────────────────────────────────────────────────"
+echo "  To use 'mac-clean' in this terminal right now:"
+echo ""
+echo "    source ${HOME}/.zshrc"
+echo ""
+echo "  (New terminals will have it automatically.)"
+echo "  ─────────────────────────────────────────────────"
+echo ""
