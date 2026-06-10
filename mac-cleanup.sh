@@ -60,18 +60,12 @@ box_sep() {
 }
 
 box_empty() {
-    echo -e "  ${CYAN}║$(box_hr ' ')║${NC}"
+    echo ""
 }
 
 box_line() {
-    local content="$1" w clean tlen
-    w=$(box_w)
-    local inner=$((w - 4))
-    clean=$(echo "$content" | sed 's/\x1b\[[0-9;]*m//g')
-    tlen=$(echo "$clean" | awk '{print length}')
-    local pad=$((inner - tlen))
-    [ "$pad" -lt 0 ] && pad=0
-    echo -e "  ${CYAN}║${NC}${content}$(printf '%*s' "$pad" '')${CYAN}║${NC}"
+    local content="$1"
+    echo -e "  ${content}"
 }
 
 # ── Global Variables ─────────────────────────────────────────
@@ -832,12 +826,12 @@ clean_category() {
         box_line "  ${BOLD}Requires:${NC} sudo (partial)"
     fi
     box_empty
-    echo -e "  ${CYAN}║${NC}  Proceed? ${BOLD}[y/N]${NC}: \c"
+    echo -e "  Proceed? ${BOLD}[y/N]${NC}: \c"
 
     read -r confirm
     if ! echo "$confirm" | grep -qi "^y"; then
         box_empty
-        box_line "  ${YELLOW}Skipped.${NC}"
+        box_line "${YELLOW}Skipped.${NC}"
         box_bot
         CATEGORIES_SKIPPED+=("$cat_name")
         return
