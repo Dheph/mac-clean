@@ -2,6 +2,36 @@
 
 Interactive shell script to clean junk files and free disk space on macOS.
 
+## Quick Install
+
+### curl (one-liner)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Dheph/mac-clean/main/install.sh | bash
+```
+
+Installs to `~/.local/bin/mac-clean` and runs the setup for alias + scheduling.
+
+### Homebrew
+
+```bash
+brew install https://raw.githubusercontent.com/Dheph/mac-clean/main/Formula/mac-clean.rb
+```
+
+Or add the tap and install:
+
+```bash
+brew tap Dheph/mac-clean
+brew install mac-clean
+```
+
+### Manual
+
+```bash
+git clone https://github.com/Dheph/mac-clean.git ~/mac-clean
+~/mac-clean/mac-cleanup.sh
+```
+
 ## Commands
 
 | Command | What it does |
@@ -9,18 +39,6 @@ Interactive shell script to clean junk files and free disk space on macOS.
 | `mac-clean` | Open interactive cleanup menu |
 | `mac-clean help` | Show help, categories, and usage info |
 | `mac-clean setup` | View or change scheduled cleanup |
-
-## Quick Start
-
-```bash
-# 1. Run installer (recommended — applies alias immediately)
-source start.sh
-
-# 2. Run the tool
-mac-clean
-
-# 3. Follow the interactive menu
-```
 
 ## Features
 
@@ -74,10 +92,12 @@ No extra processes running. launchd sleeps until the scheduled time — zero ove
 ## Project
 
 ```
-mac-cleanup/
+mac-clean/
 ├── mac-cleanup.sh       # Main cleanup tool
-├── start.sh             # Installer & scheduler
-├── mac-cleanup.command  # Created by start.sh for Terminal scheduling
+├── start.sh             # Local installer & scheduler
+├── install.sh           # curl-based installer
+├── Formula/
+│   └── mac-clean.rb     # Homebrew formula
 └── README.md
 ```
 
