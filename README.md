@@ -51,22 +51,27 @@ git clone https://github.com/Dheph/mac-clean.git ~/mac-clean
 
 ## Scheduling
 
-The installer can set up a **recurring cleanup routine** using macOS `launchd`:
-
-| Option | When it runs |
-|--------|-------------|
-| Weekly | Every Monday at 10 AM |
-| Bi-weekly | Every 14 days |
-| Monthly | 1st of each month at 10 AM |
-
-On schedule, a Terminal window opens automatically with the cleanup menu ready.
+Set up a **recurring cleanup routine** — you can do it right from the tool:
 
 ```bash
-# View or change your schedule anytime:
+# Create or change schedule:
 mac-clean setup
 ```
 
-No extra processes running. launchd sleeps until the scheduled time — zero overhead.
+The same menu also lets you view your current schedule, change frequency, or remove it.
+
+| Option | When it runs |
+|--------|-------------|
+| Weekly | Every Monday at 10 AM (configurable day) |
+| Bi-weekly | Every 14 days |
+| Monthly | 1st of each month at 10 AM |
+
+It uses macOS `launchd` — zero overhead, no extra processes. On schedule, a Terminal window opens with the cleanup menu ready.
+
+```bash
+# Quick start from scratch (alias + schedule in one go):
+source start.sh
+```
 
 ## Categories
 
