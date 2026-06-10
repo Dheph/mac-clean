@@ -68,6 +68,21 @@ box_line() {
     echo -e "  ${content}"
 }
 
+# ── Spinner ──────────────────────────────────────────────────
+
+spinner() {
+    local msg="$1" pid="$2"
+    local spin='-\|/'
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$(( (i+1) % 4 ))
+        printf "\r  ${CYAN}[%c]${NC} %s" "${spin:$i:1}" "$msg"
+        sleep 0.1
+    done
+    wait "$pid"
+    printf "\r  ${GREEN}[✓]${NC} %s\n" "$msg"
+}
+
 # ── Global Variables ─────────────────────────────────────────
 TOTAL_FREED=0
 BEFORE_DISK_AVAIL=""
@@ -841,24 +856,30 @@ clean_category() {
 
     local before_size="$size_kb"
 
-    case "$idx" in
-        1)  clean_trash ;;
-        2)  clean_system_caches ;;
-        3)  clean_user_caches ;;
-        4)  clean_system_logs ;;
-        5)  clean_user_logs ;;
-        6)  clean_temp_files ;;
-        7)  clean_xcode ;;
-        8)  clean_homebrew ;;
-        9)  clean_node ;;
-        10) clean_python ;;
-        11) clean_docker ;;
-        12) clean_spotify ;;
-        13) clean_tm_snapshots ;;
-        14) clean_ios_backups || return 0 ;;
-        15) clean_mail_downloads ;;
-        16) clean_ds_store ;;
-    esac
+    if [ "$idx" -eq 14 ]; then
+        clean_ios_backups || return 0
+    else
+        (
+            case "$idx" in
+                1)  clean_trash ;;
+                2)  clean_system_caches ;;
+                3)  clean_user_caches ;;
+                4)  clean_system_logs ;;
+                5)  clean_user_logs ;;
+                6)  clean_temp_files ;;
+                7)  clean_xcode ;;
+                8)  clean_homebrew ;;
+                9)  clean_node ;;
+                10) clean_python ;;
+                11) clean_docker ;;
+                12) clean_spotify ;;
+                13) clean_tm_snapshots ;;
+                15) clean_mail_downloads ;;
+                16) clean_ds_store ;;
+            esac
+        ) &>/dev/null &
+        spinner "Cleaning ${cat_name}..." $!
+    fi
 
     local freed_bytes=$((before_size * 1024))
     local freed_str
