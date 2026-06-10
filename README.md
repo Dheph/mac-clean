@@ -49,6 +49,15 @@ git clone https://github.com/Dheph/mac-clean.git ~/mac-clean
 - **Final report** — shows exactly how much space was recovered
 - **Scheduled cleanup** — optional weekly/bi-weekly/monthly routine via `launchd`
 
+## Screenshots
+
+| | |
+|---|---|
+| **mac-clean** — main menu with system status and all categories | **mac-clean help** — help and category reference |
+| ![](assets/mac-clean.png) | ![](assets/mac-clean%20help.png) |
+| **mac-clean select-categories** — choosing specific categories with one-click confirm | **mac-clean setup** — schedule management (view, change, remove) |
+| ![](assets/mac-clean%20select-categories.png) | ![](assets/mac-clean%20setup.png) |
+
 ## Scheduling
 
 Set up a **recurring cleanup routine** — you can do it right from the tool:
@@ -101,6 +110,11 @@ mac-clean/
 ├── mac-cleanup.sh       # Main cleanup tool
 ├── start.sh             # Local installer & scheduler
 ├── install.sh           # curl-based installer
+├── assets/
+│   ├── mac-clean.png
+│   ├── mac-clean help.png
+│   ├── mac-clean select-categories.png
+│   └── mac-clean setup.png
 ├── Formula/
 │   └── mac-clean.rb     # Homebrew formula
 └── README.md
