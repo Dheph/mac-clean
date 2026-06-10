@@ -29,7 +29,21 @@ CATEGORIES_SKIPPED=()
 CATEGORIES_FREED=()
 
 # ── Config ─────────────────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+resolve_script_dir() {
+    local source="${BASH_SOURCE[0]}"
+    while [ -L "$source" ]; do
+        local target
+        target=$(readlink "$source" 2>/dev/null || echo "")
+        if [ -z "$target" ]; then break; fi
+        if [[ "$target" != /* ]]; then
+            source="$(cd "$(dirname "$source")" && pwd)/$target"
+        else
+            source="$target"
+        fi
+    done
+    cd "$(dirname "$source")" && pwd
+}
+SCRIPT_DIR="$(resolve_script_dir)"
 CONFIG_DIR="$HOME/.config/mac-cleanup"
 CONFIG_FILE="$CONFIG_DIR/config"
 
@@ -876,10 +890,12 @@ EOFC
     else
         echo -e "  Status:  ${DIM}Not configured${NC}"
         echo ""
-        echo -e "  Run ${BOLD}source start.sh${NC} from the project folder"
-        echo -e "  to set up a scheduled cleanup routine."
-        echo ""
-        echo -e "  Or configure it manually:"
+        if [ -f "$SCRIPT_DIR/start.sh" ]; then
+            echo -e "  Run ${BOLD}source start.sh${NC} from the project folder"
+            echo -e "  to set up a scheduled cleanup routine."
+            echo ""
+        fi
+        echo -e "  Or use the installer:"
         echo -e "    ${BOLD}[1]${NC} Weekly"
         echo -e "    ${BOLD}[2]${NC} Every 2 weeks"
         echo -e "    ${BOLD}[3]${NC} Monthly"
