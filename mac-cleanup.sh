@@ -31,7 +31,7 @@ box_hr() {
     local ch="$1" n="${2:-}" i
     if [ -z "$n" ]; then
         n=$(box_w)
-        n=$((n - 2))
+        n=$((n - 4))
     fi
     for ((i=0; i<n; i++)); do printf "%s" "$ch"; done
 }
@@ -39,7 +39,7 @@ box_hr() {
 box_top() {
     local title="${1:-}" w inner left right
     w=$(box_w)
-    inner=$((w - 2))
+    inner=$((w - 4))
     if [ -n "$title" ]; then
         local tlen
         tlen=$(echo "$title" | awk '{print length}')
@@ -66,7 +66,7 @@ box_empty() {
 box_line() {
     local content="$1" w clean tlen
     w=$(box_w)
-    local inner=$((w - 2))
+    local inner=$((w - 4))
     clean=$(echo "$content" | sed 's/\x1b\[[0-9;]*m//g')
     tlen=$(echo "$clean" | awk '{print length}')
     local pad=$((inner - tlen))
