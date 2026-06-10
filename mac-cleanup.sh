@@ -122,6 +122,141 @@ day_name() {
     esac
 }
 
+# ── Schedule Helpers ──────────────────────────────────────────
+
+PLIST_LABEL="com.mac-cleanup.schedule"
+PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
+
+write_plist() {
+    local cmd_file="$1" interval="$2" weekday="${3:-}"
+    mkdir -p "$HOME/Library/LaunchAgents"
+
+    cat > "$PLIST_PATH" <<- EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>$PLIST_LABEL</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/open</string>
+        <string>$cmd_file</string>
+    </array>
+EOF
+
+    case "$interval" in
+        1|weekly)
+            local day="${weekday:-1}"
+            cat >> "$PLIST_PATH" <<- EOF
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key>
+            <integer>$day</integer>
+            <key>Hour</key>
+            <integer>10</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+EOF
+            ;;
+        2|biweekly)
+            cat >> "$PLIST_PATH" <<- EOF
+    <key>StartInterval</key>
+    <integer>1209600</integer>
+EOF
+            ;;
+        3|monthly)
+            cat >> "$PLIST_PATH" <<- EOF
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Day</key>
+            <integer>1</integer>
+            <key>Hour</key>
+            <integer>10</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+EOF
+            ;;
+    esac
+
+    cat >> "$PLIST_PATH" <<- EOF
+    <key>StandardOutPath</key>
+    <string>/tmp/$PLIST_LABEL.stdout</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/$PLIST_LABEL.stderr</string>
+</dict>
+</plist>
+EOF
+
+    chmod 644 "$PLIST_PATH"
+}
+
+load_plist() {
+    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+    launchctl load "$PLIST_PATH" 2>/dev/null
+}
+
+unload_plist() {
+    launchctl unload "$PLIST_PATH" 2>/dev/null || true
+    rm -f "$PLIST_PATH" "$CONFIG_FILE"
+}
+
+setup_schedule() {
+    local interval="$1" weekday="${2:-}"
+    local cmd_file="$SCRIPT_DIR/mac-cleanup.command"
+
+    if [ ! -f "$cmd_file" ]; then
+        cat > "$cmd_file" <<- EOF
+#!/usr/bin/env bash
+cd "\$(dirname "\$0")"
+exec ./mac-cleanup.sh
+EOF
+        chmod +x "$cmd_file"
+    fi
+
+    mkdir -p "$CONFIG_DIR"
+
+    case "$interval" in
+        1|weekly)
+            local wd="${weekday:-1}"
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=weekly
+SCHEDULE_DAY=$wd
+SCHEDULE_HOUR=10
+SCHEDULE_MINUTE=0
+SCHEDULE_CREATED=$(date +%s)
+EOF
+            write_plist "$cmd_file" weekly "$wd"
+            ;;
+        2|biweekly)
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=biweekly
+SCHEDULE_CREATED=$(date +%s)
+EOF
+            write_plist "$cmd_file" biweekly
+            ;;
+        3|monthly)
+            cat > "$CONFIG_FILE" <<- EOF
+SCHEDULE_TYPE=monthly
+SCHEDULE_DAY=1
+SCHEDULE_HOUR=10
+SCHEDULE_MINUTE=0
+SCHEDULE_CREATED=$(date +%s)
+EOF
+            write_plist "$cmd_file" monthly
+            ;;
+    esac
+
+    load_plist
+}
+
 # ── Helper Functions ──────────────────────────────────────────
 
 safe_int() {
@@ -811,7 +946,6 @@ setup_menu() {
     echo ""
 
     read_config
-    local sched="$CONFIG_DIR/schedule"
     local plist="$HOME/Library/LaunchAgents/com.mac-cleanup.schedule.plist"
 
     if [ -n "$SCHEDULE_TYPE" ] && [ -f "$plist" ]; then
@@ -835,52 +969,27 @@ setup_menu() {
                 echo "    ${BOLD}[4]${NC} Cancel"
                 echo ""
                 read -rp "    Interval [1-4]: " new_sched
-                local cmd_file
-                cmd_file="$SCRIPT_DIR/mac-cleanup.command"
                 case "$new_sched" in
                     1)
                         read -rp "    Weekday [1=Mon-7=Sun, default=1]: " wd
-                        mkdir -p "$CONFIG_DIR"
-                        echo "SCHEDULE_TYPE=weekly" > "$CONFIG_FILE"
-                        echo "SCHEDULE_DAY=${wd:-1}" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_HOUR=10" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_MINUTE=0" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        setup_schedule 1 "${wd:-1}"
                         echo -e "  ${GREEN}✓${NC} Schedule updated!"
                         ;;
                     2)
-                        mkdir -p "$CONFIG_DIR"
-                        echo "SCHEDULE_TYPE=biweekly" > "$CONFIG_FILE"
-                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        setup_schedule 2
                         echo -e "  ${GREEN}✓${NC} Schedule updated!"
                         ;;
                     3)
-                        mkdir -p "$CONFIG_DIR"
-                        echo "SCHEDULE_TYPE=monthly" > "$CONFIG_FILE"
-                        echo "SCHEDULE_DAY=1" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_HOUR=10" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_MINUTE=0" >> "$CONFIG_FILE"
-                        echo "SCHEDULE_CREATED=$(date +%s)" >> "$CONFIG_FILE"
+                        setup_schedule 3
                         echo -e "  ${GREEN}✓${NC} Schedule updated!"
                         ;;
                     *)
                         echo "  No changes."
                         ;;
                 esac
-                if [ "$new_sched" -ge 1 ] && [ "$new_sched" -le 3 ] 2>/dev/null; then
-                    if [ ! -f "$cmd_file" ]; then
-                        cat > "$cmd_file" <<- EOFC
-#!/usr/bin/env bash
-cd "\$(dirname "\$0")"
-exec ./mac-cleanup.sh
-EOFC
-                        chmod +x "$cmd_file"
-                    fi
-                fi
                 ;;
             2)
-                launchctl unload "$plist" 2>/dev/null || true
-                rm -f "$plist" "$CONFIG_FILE"
+                unload_plist
                 echo -e "  ${GREEN}✓${NC} Schedule removed."
                 ;;
             *)
@@ -890,24 +999,25 @@ EOFC
     else
         echo -e "  Status:  ${DIM}Not configured${NC}"
         echo ""
-        if [ -f "$SCRIPT_DIR/start.sh" ]; then
-            echo -e "  Run ${BOLD}source start.sh${NC} from the project folder"
-            echo -e "  to set up a scheduled cleanup routine."
-            echo ""
-        fi
-        echo -e "  Or use the installer:"
-        echo -e "    ${BOLD}[1]${NC} Weekly"
-        echo -e "    ${BOLD}[2]${NC} Every 2 weeks"
-        echo -e "    ${BOLD}[3]${NC} Monthly"
-        echo -e "    ${BOLD}[4]${NC} Cancel"
+        echo -e "  ${BOLD}[1]${NC} Weekly (every Monday)"
+        echo -e "  ${BOLD}[2]${NC} Every 2 weeks"
+        echo -e "  ${BOLD}[3]${NC} Monthly (1st of month)"
+        echo -e "  ${BOLD}[4]${NC} Cancel"
         echo ""
         read -rp "  Choice [1-4]: " new_sched
         case "$new_sched" in
-            1|2|3)
-                echo ""
-                echo "  To complete the setup, run:"
-                echo "    source $(dirname "$0")/start.sh"
-                echo ""
+            1)
+                read -rp "  Weekday [1=Mon-7=Sun, default=1]: " wd
+                setup_schedule 1 "${wd:-1}"
+                echo -e "  ${GREEN}✓${NC} Schedule created!"
+                ;;
+            2)
+                setup_schedule 2
+                echo -e "  ${GREEN}✓${NC} Schedule created!"
+                ;;
+            3)
+                setup_schedule 3
+                echo -e "  ${GREEN}✓${NC} Schedule created!"
                 ;;
             *)
                 echo "  No changes."
