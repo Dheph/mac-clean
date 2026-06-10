@@ -57,6 +57,8 @@ git clone https://github.com/Dheph/mac-clean.git ~/mac-clean
 | ![](assets/mac-clean.png) | ![](assets/mac-clean%20help.png) |
 | **mac-clean select-categories** — choosing specific categories with one-click confirm | **mac-clean setup** — schedule management (view, change, remove) |
 | ![](assets/mac-clean%20select-categories.png) | ![](assets/mac-clean%20setup.png) |
+| **mac-clean cleanup report** — post-cleanup summary with disk and memory deltas | |
+| ![](assets/mac-clean%20cleanup%20report.png) | |
 
 ## Scheduling
 
@@ -114,7 +116,8 @@ mac-clean/
 │   ├── mac-clean.png
 │   ├── mac-clean help.png
 │   ├── mac-clean select-categories.png
-│   └── mac-clean setup.png
+│   ├── mac-clean setup.png
+│   └── mac-clean cleanup report.png
 ├── Formula/
 │   └── mac-clean.rb     # Homebrew formula
 └── README.md
